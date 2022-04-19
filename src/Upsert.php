@@ -76,7 +76,7 @@ class Upsert
         return $this;
     }
 
-    public function execute(): void
+    public function execute(): int
     {
         if (!$this->table) {
             throw new Exception\NoTableGiven('No table name has been set!', 1603199471);
@@ -98,11 +98,13 @@ class Upsert
 
         $sql = $this->buildQuery($columns, $values, $updates);
 
-        $this->connection->executeQuery(
+        $result = $this->connection->executeQuery(
             $sql,
             array_combine(array_keys($allFields), array_column($allFields, 'value')),
             array_combine(array_keys($allFields), array_column($allFields, 'type'))
         );
+
+        return $result->rowCount();
     }
 
     protected function buildQuery(string $columns, string $values, string $updates): string

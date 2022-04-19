@@ -6,6 +6,7 @@ namespace Netlogix\Doctrine\Upsert\Test;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Exception as DBALException;
+use Doctrine\DBAL\ForwardCompatibility\DriverResultStatement;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Netlogix\Doctrine\Upsert\Exception;
@@ -113,7 +114,8 @@ class UpsertTest extends TestCase
                     'boo' => 4,
                 ],
                 self::anything()
-            );
+            )
+            ->willReturn($this->getMockResult(0));
 
         Upsert::fromConnection($connection)
             ->forTable('foo_table')
@@ -143,7 +145,8 @@ class UpsertTest extends TestCase
                     'baz' => ParameterType::BOOLEAN,
                     'boo' => ParameterType::LARGE_OBJECT,
                 ]
-            );
+            )
+            ->willReturn($this->getMockResult(0));
 
         Upsert::fromConnection($connection)
             ->forTable('foo_table')
@@ -152,6 +155,39 @@ class UpsertTest extends TestCase
             ->withField('baz', true, ParameterType::BOOLEAN)
             ->withField('boo', 4, ParameterType::LARGE_OBJECT)
             ->execute();
+    }
+
+    /**
+     * @test
+     */
+    public function RowCount_is_returned(): void
+    {
+        $connection = $this->getMockConnection();
+
+        $connection
+            ->expects(self::once())
+            ->method('executeQuery')
+            ->with(
+                self::anything(),
+                self::anything(),
+                [
+                    'foo' => ParameterType::INTEGER,
+                    'bar' => ParameterType::STRING,
+                    'baz' => ParameterType::BOOLEAN,
+                    'boo' => ParameterType::LARGE_OBJECT,
+                ]
+            )
+            ->willReturn($this->getMockResult(35));
+
+        $count = Upsert::fromConnection($connection)
+            ->forTable('foo_table')
+            ->withIdentifier('foo', 1, ParameterType::INTEGER)
+            ->withIdentifier('bar', '2', ParameterType::STRING)
+            ->withField('baz', true, ParameterType::BOOLEAN)
+            ->withField('boo', 4, ParameterType::LARGE_OBJECT)
+            ->execute();
+
+        self::assertEquals(35, $count);
     }
 
     /**
@@ -247,6 +283,18 @@ class UpsertTest extends TestCase
             ->willReturn($platform);
 
         return $connection;
+    }
+
+    private function getMockResult(int $rowCount): DriverResultStatement
+    {
+        $result = $this->getMockBuilder(DriverResultStatement::class)
+            ->getMock();
+
+        $result
+            ->method('rowCount')
+            ->willReturn($rowCount);
+
+        return $result;
     }
 
 }
