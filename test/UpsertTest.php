@@ -257,6 +257,10 @@ class UpsertTest extends TestCase
 
     private function getSQLiteConnection(): Connection
     {
+        if (!extension_loaded('sqlite')) {
+            self::markTestSkipped('ext-sqlite3 is required for tests');
+        }
+
         return DriverManager::getConnection([
             'url' => 'sqlite:///:memory:'
         ]);
