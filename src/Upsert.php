@@ -8,6 +8,7 @@ use BackedEnum;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
+use Doctrine\DBAL\Platforms\MySqlPlatform;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\DBAL\Platforms\SqlitePlatform;
 use RuntimeException;
@@ -121,22 +122,24 @@ final class Upsert
 
         return match (true) {
             $platform instanceof PostgreSQLPlatform => <<<POSTGRESQL
-INSERT INTO "{$this->table}" ({$columns})
-VALUES ({$values})
-ON CONFLICT ({$identifiers}) DO UPDATE SET {$updates}
-POSTGRESQL
+                INSERT INTO "{$this->table}" ({$columns})
+                VALUES ({$values})
+                ON CONFLICT ({$identifiers}) DO UPDATE SET {$updates}
+                POSTGRESQL
         ,
-            $platform instanceof AbstractMySQLPlatform => <<<MYSQL
-INSERT INTO {$this->table} ({$columns})
-VALUES ({$values})
-ON DUPLICATE KEY UPDATE {$updates}
-MYSQL
-        ,$platform instanceof SqlitePlatform => <<<SQLITE
-INSERT INTO {$this->table} ({$columns})
-VALUES ({$values})
-ON CONFLICT({$identifiers}) DO UPDATE SET {$updates}
-SQLITE
-            ,default => throw new RuntimeException(
+            $platform instanceof AbstractMySQLPlatform || $platform instanceof MySqlPlatform => <<<MYSQL
+                INSERT INTO {$this->table} ({$columns})
+                VALUES ({$values})
+                ON DUPLICATE KEY UPDATE {$updates}
+                MYSQL
+        ,
+            $platform instanceof SqlitePlatform => <<<SQLITE
+                INSERT INTO {$this->table} ({$columns})
+                VALUES ({$values})
+                ON CONFLICT({$identifiers}) DO UPDATE SET {$updates}
+                SQLITE
+        ,
+            default => throw new RuntimeException(
                 sprintf('The database platform %s is not supported!', $platform::class),
                 1_603_199_935
             )
