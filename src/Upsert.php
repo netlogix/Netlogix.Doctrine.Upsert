@@ -39,7 +39,7 @@ final class Upsert
         return $this;
     }
 
-    public function withIdentifier(string $column, mixed $value, int $parameterType = ParameterType::STRING): self
+    public function withIdentifier(string $column, mixed $value, ParameterType $parameterType = ParameterType::STRING): self
     {
         $this->throwErrorIsColumnExists($column);
 
@@ -60,7 +60,7 @@ final class Upsert
     public function withField(
         string $column,
         mixed $value,
-        int $parameterType = ParameterType::STRING,
+        ParameterType $parameterType = ParameterType::STRING,
         bool $insertOnly = false
     ): self {
         $this->throwErrorIsColumnExists($column);
