@@ -8,6 +8,7 @@ use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Exception as DBALException;
 use Doctrine\DBAL\ForwardCompatibility\DriverResultStatement;
 use Doctrine\DBAL\ParameterType;
+use Doctrine\DBAL\Platforms\SqlitePlatform;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Netlogix\Doctrine\Upsert\Exception;
 use Netlogix\Doctrine\Upsert\Upsert;
@@ -275,7 +276,11 @@ class UpsertTest extends TestCase
             ->disableOriginalConstructor()
             ->getMock();
 
-        $platform = $this->getMockBuilder(AbstractPlatform::class)
+        $platformClass = AbstractPlatform::class;
+        if (class_exists(SqlitePlatform::class)) {
+            $platformClass = SqlitePlatform::class;
+        }
+        $platform = $this->getMockBuilder($platformClass)
             ->getMock();
 
         $platform

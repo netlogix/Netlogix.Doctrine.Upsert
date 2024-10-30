@@ -41,7 +41,7 @@ final class Upsert
 
     public function withIdentifier(string $column, mixed $value, int $parameterType = ParameterType::STRING): self
     {
-        $this->throwErrorIsColumnExists($column);
+        $this->throwErrorIfColumnExists($column, 'identifier');
 
         if (is_object($value) && method_exists($value, 'rawType')) {
             $parameterType = $value->rawType();
@@ -63,7 +63,7 @@ final class Upsert
         int $parameterType = ParameterType::STRING,
         bool $insertOnly = false
     ): self {
-        $this->throwErrorIsColumnExists($column);
+        $this->throwErrorIfColumnExists($column, 'field');
 
         if (is_object($value) && method_exists($value, 'rawType')) {
             $parameterType = $value->rawType();
@@ -153,11 +153,11 @@ final class Upsert
         }
 
         if ($value instanceof Stringable) {
-            $value = (string) $value;
+            $value = (string)$value;
         }
 
         if ($value instanceof BackedEnum) {
-            $value = (string) $value->value;
+            $value = (string)$value->value;
         }
 
         if (is_object($value) && method_exists($value, 'rawValue')) {
@@ -167,17 +167,28 @@ final class Upsert
         return $value;
     }
 
-    private function throwErrorIsColumnExists(string $column): void
+    private function throwErrorIfColumnExists(string $column, string $type): void
     {
-        if (array_key_exists($column, $this->fields)) {
-            throw new Exception\FieldAlreadyInUse(sprintf('The field "%s" has already been set!', $column), 1603196457);
+        if ($type === 'field') {
+            if (array_key_exists($column, $this->fields)) {
+                throw new Exception\FieldAlreadyInUse(sprintf('The field "%s" has already been set!', $column),
+                    1603196457);
+            }
+            if (array_key_exists($column, $this->identifiers)) {
+                throw new Exception\FieldRegisteredAsIdentifier(sprintf('The field "%s" has already been set as identifier!',
+                    $column), 1603197691);
+            }
         }
 
-        if (array_key_exists($column, $this->identifiers)) {
-            throw new Exception\IdentifierRegisteredAsField(
-                sprintf('The field "%s" has already been set as identifier!', $column),
-                1603197691
-            );
+        if ($type === 'identifier') {
+            if (array_key_exists($column, $this->identifiers)) {
+                throw new Exception\IdentifierAlreadyInUse(sprintf('The identifier "%s" has already been set!',
+                    $column), 1603196381);
+            }
+            if (array_key_exists($column, $this->fields)) {
+                throw new Exception\IdentifierRegisteredAsField(sprintf('The identifier "%s" has already been set as field!',
+                    $column), 1603197666);
+            }
         }
     }
 }
