@@ -1,0 +1,60 @@
+name: unittests
+
+on: [ push, pull_request ]
+
+jobs:
+  unittests:
+    name: '[PHP ${{ matrix.php-version }} | DBAL ${{ matrix.dbal-version }}] Unit Tests'
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: [ 8.1, 8.2, 8.3 ]
+        dbal-version: [ 2.13, 3.8 ]
+
+    env:
+      APP_ENV: true
+      TEST_DIR: test-dir
+
+    steps:
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: mbstring, xml, json, zlib, iconv, intl, pdo_sqlite
+          ini-values: opcache.fast_shutdown=0
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.TEST_DIR }}/dist/upsert
+
+      - name: "Create composer.json"
+        run: |
+          echo '{
+              "name": "netlogix/upsert-test",
+              "description": "",
+              "license": "GPL-3.0-or-later",
+              "require": {
+                  "netlogix/doctrine-upsert": "@dev",
+                  "doctrine/dbal": "^${{ matrix.dbal-version }}"
+              },
+              "require-dev": {
+                  "phpunit/phpunit": "^10.5"
+              },
+              "repositories": [
+                  {
+                      "type": "path",
+                      "url": "dist/upsert"
+                  }
+              ]
+          }' > composer.json
+        working-directory: ${{ env.TEST_DIR }}
+
+      - name: "Install project"
+        run: composer install
+        working-directory: ${{ env.TEST_DIR }}
+
+      - name: Run tests
+        run: vendor/bin/phpunit -c dist/upsert/phpunit.xml.dist --testsuite="Unit"
+        working-directory: ${{ env.TEST_DIR }}
