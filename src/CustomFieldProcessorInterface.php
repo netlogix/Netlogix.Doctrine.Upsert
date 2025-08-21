@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Netlogix\Doctrine\Upsert;
 
-interface UpsertCustomFieldProcessorInterface
+interface CustomFieldProcessorInterface
 {
     public function processField(string $table, string $column, mixed $value): mixed;
 

@@ -22,6 +22,10 @@ final class Upsert
 
     private array $fields = [];
 
+    /**
+     * @phpstan-var array<string, CustomFieldProcessorInterface>
+     * @var CustomFieldProcessorInterface[]
+     */
     private array $customFieldProcessors = [];
 
     private function __construct(
@@ -43,7 +47,7 @@ final class Upsert
 
     public function withCustomFieldProcessor(
         string $identifier,
-        UpsertCustomFieldProcessorInterface $processor,
+        CustomFieldProcessorInterface $processor,
     ): self {
         $this->customFieldProcessors[$identifier] = $processor;
 
