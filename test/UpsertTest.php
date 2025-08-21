@@ -189,7 +189,7 @@ class UpsertTest extends TestCase
     public function Insert_works(): void
     {
         $connection = $this->getSQLiteConnection();
-        $connection->exec('CREATE TABLE foo_table(bar TEXT PRIMARY KEY, count INT);');
+        $connection->executeStatement('CREATE TABLE foo_table(bar TEXT PRIMARY KEY, count INT);');
 
         Upsert::fromConnection($connection)
             ->forTable('foo_table')
@@ -197,7 +197,7 @@ class UpsertTest extends TestCase
             ->withField('count', 1)
             ->execute();
 
-        $values = $connection->fetchAll('SELECT * FROM foo_table');
+        $values = $connection->fetchAllAssociative('SELECT * FROM foo_table');
         self::assertCount(1, $values);
         self::assertSame(
             [
@@ -212,8 +212,8 @@ class UpsertTest extends TestCase
     public function Upsert_works(): void
     {
         $connection = $this->getSQLiteConnection();
-        $connection->exec('CREATE TABLE foo_table(bar TEXT PRIMARY KEY, count INT);');
-        $connection->exec('INSERT INTO foo_table (bar, count) VALUES ("baz", 1)');
+        $connection->executeStatement('CREATE TABLE foo_table(bar TEXT PRIMARY KEY, count INT);');
+        $connection->executeStatement('INSERT INTO foo_table (bar, count) VALUES ("baz", 1)');
 
         Upsert::fromConnection($connection)
             ->forTable('foo_table')
@@ -221,7 +221,7 @@ class UpsertTest extends TestCase
             ->withField('count', 2)
             ->execute();
 
-        $values = $connection->fetchAll('SELECT * FROM foo_table');
+        $values = $connection->fetchAllAssociative('SELECT * FROM foo_table');
         self::assertCount(1, $values);
         self::assertSame(
             [
