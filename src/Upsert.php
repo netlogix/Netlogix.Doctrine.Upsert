@@ -22,6 +22,8 @@ final class Upsert
 
     private array $fields = [];
 
+    private array $customFieldProcessors = [];
+
     private function __construct(
         private readonly Connection $connection
     ) {
@@ -35,6 +37,15 @@ final class Upsert
     public function forTable(string $table): self
     {
         $this->table = $table;
+
+        return $this;
+    }
+
+    public function withCustomFieldProcessor(
+        string $identifier,
+        UpsertCustomFieldProcessorInterface $processor,
+    ): self {
+        $this->customFieldProcessors[$identifier] = $processor;
 
         return $this;
     }
@@ -61,7 +72,8 @@ final class Upsert
         string $column,
         mixed $value,
         ParameterType $parameterType = ParameterType::STRING,
-        bool $insertOnly = false
+        bool $insertOnly = false,
+        ?string $customFieldProcessor = null,
     ): self {
         $this->throwErrorIsColumnExists($column);
 
@@ -70,6 +82,21 @@ final class Upsert
         }
 
         $value = $this->getValue($value);
+
+        if ($customFieldProcessor && !array_key_exists($customFieldProcessor, $this->customFieldProcessors)) {
+            throw new RuntimeException(
+                sprintf('The custom field processor "%s" has not been registered!', $customFieldProcessor),
+                1709281944,
+            );
+        }
+
+        if ($customFieldProcessor) {
+            $value = $this->customFieldProcessors[$customFieldProcessor]->processField(
+                $this->table,
+                $column,
+                $value,
+            );
+        }
 
         $this->fields[$column] = [
             'value' => $value,
@@ -112,6 +139,10 @@ final class Upsert
             array_combine(array_keys($allFields), array_column($allFields, 'value')),
             array_combine(array_keys($allFields), array_column($allFields, 'type'))
         );
+
+        foreach ($this->customFieldProcessors as $processor) {
+            $processor->postUpsert($this->table, $allFields, (int) $this->connection->lastInsertId());
+        }
 
         return $result->rowCount();
     }
