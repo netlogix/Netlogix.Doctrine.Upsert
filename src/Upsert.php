@@ -22,6 +22,12 @@ final class Upsert
 
     private array $fields = [];
 
+    /**
+     * @phpstan-var array<string, CustomFieldProcessorInterface>
+     * @var CustomFieldProcessorInterface[]
+     */
+    private array $customFieldProcessors = [];
+
     private function __construct(
         private readonly Connection $connection
     ) {
@@ -39,9 +45,18 @@ final class Upsert
         return $this;
     }
 
-    public function withIdentifier(string $column, mixed $value, int $parameterType = ParameterType::STRING): self
+    public function withCustomFieldProcessor(
+        string $identifier,
+        CustomFieldProcessorInterface $processor,
+    ): self {
+        $this->customFieldProcessors[$identifier] = $processor;
+
+        return $this;
+    }
+
+    public function withIdentifier(string $column, mixed $value, ParameterType $parameterType = ParameterType::STRING): self
     {
-        $this->throwErrorIfColumnExists($column, 'identifier');
+        $this->throwErrorIsColumnExists($column);
 
         if (is_object($value) && method_exists($value, 'rawType')) {
             $parameterType = $value->rawType();
@@ -60,16 +75,32 @@ final class Upsert
     public function withField(
         string $column,
         mixed $value,
-        int $parameterType = ParameterType::STRING,
-        bool $insertOnly = false
+        ParameterType $parameterType = ParameterType::STRING,
+        bool $insertOnly = false,
+        ?string $customFieldProcessor = null,
     ): self {
-        $this->throwErrorIfColumnExists($column, 'field');
+        $this->throwErrorIsColumnExists($column);
 
         if (is_object($value) && method_exists($value, 'rawType')) {
             $parameterType = $value->rawType();
         }
 
         $value = $this->getValue($value);
+
+        if ($customFieldProcessor && !array_key_exists($customFieldProcessor, $this->customFieldProcessors)) {
+            throw new RuntimeException(
+                sprintf('The custom field processor "%s" has not been registered!', $customFieldProcessor),
+                1709281944,
+            );
+        }
+
+        if ($customFieldProcessor) {
+            $value = $this->customFieldProcessors[$customFieldProcessor]->processField(
+                $this->table,
+                $column,
+                $value,
+            );
+        }
 
         $this->fields[$column] = [
             'value' => $value,
@@ -113,6 +144,10 @@ final class Upsert
             array_combine(array_keys($allFields), array_column($allFields, 'type'))
         );
 
+        foreach ($this->customFieldProcessors as $processor) {
+            $processor->postUpsert($this->table, $allFields, (int) $this->connection->lastInsertId());
+        }
+
         return $result->rowCount();
     }
 
@@ -153,11 +188,11 @@ final class Upsert
         }
 
         if ($value instanceof Stringable) {
-            $value = (string)$value;
+            $value = (string) $value;
         }
 
         if ($value instanceof BackedEnum) {
-            $value = (string)$value->value;
+            $value = (string) $value->value;
         }
 
         if (is_object($value) && method_exists($value, 'rawValue')) {
@@ -167,28 +202,17 @@ final class Upsert
         return $value;
     }
 
-    private function throwErrorIfColumnExists(string $column, string $type): void
+    private function throwErrorIsColumnExists(string $column): void
     {
-        if ($type === 'field') {
-            if (array_key_exists($column, $this->fields)) {
-                throw new Exception\FieldAlreadyInUse(sprintf('The field "%s" has already been set!', $column),
-                    1603196457);
-            }
-            if (array_key_exists($column, $this->identifiers)) {
-                throw new Exception\FieldRegisteredAsIdentifier(sprintf('The field "%s" has already been set as identifier!',
-                    $column), 1603197691);
-            }
+        if (array_key_exists($column, $this->fields)) {
+            throw new Exception\FieldAlreadyInUse(sprintf('The field "%s" has already been set!', $column), 1603196457);
         }
 
-        if ($type === 'identifier') {
-            if (array_key_exists($column, $this->identifiers)) {
-                throw new Exception\IdentifierAlreadyInUse(sprintf('The identifier "%s" has already been set!',
-                    $column), 1603196381);
-            }
-            if (array_key_exists($column, $this->fields)) {
-                throw new Exception\IdentifierRegisteredAsField(sprintf('The identifier "%s" has already been set as field!',
-                    $column), 1603197666);
-            }
+        if (array_key_exists($column, $this->identifiers)) {
+            throw new Exception\IdentifierRegisteredAsField(
+                sprintf('The field "%s" has already been set as identifier!', $column),
+                1603197691
+            );
         }
     }
 }

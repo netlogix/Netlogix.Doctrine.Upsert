@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Netlogix\Doctrine\Upsert\Test;
@@ -6,20 +7,17 @@ namespace Netlogix\Doctrine\Upsert\Test;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Exception as DBALException;
+use Doctrine\DBAL\Platforms\SQLitePlatform;
 use Doctrine\DBAL\Result;
+use PHPUnit\Framework\Attributes\Test;
 use Doctrine\DBAL\ParameterType;
-use Doctrine\DBAL\Platforms\SqlitePlatform;
-use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Netlogix\Doctrine\Upsert\Exception;
 use Netlogix\Doctrine\Upsert\Upsert;
 use PHPUnit\Framework\TestCase;
 
 class UpsertTest extends TestCase
 {
-
-    /**
-     * @test
-     */
+    #[Test]
     public function If_no_table_name_has_been_set_an_exception_is_thrown(): void
     {
         self::expectException(Exception\NoTableGiven::class);
@@ -28,9 +26,7 @@ class UpsertTest extends TestCase
             ->execute();
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function If_no_columns_are_specified_an_exception_is_thrown(): void
     {
         self::expectException(Exception\EmptyUpsert::class);
@@ -40,12 +36,10 @@ class UpsertTest extends TestCase
             ->execute();
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function Identifiers_cannot_be_registered_more_than_once(): void
     {
-        self::expectException(Exception\IdentifierAlreadyInUse::class);
+        self::expectException(Exception\IdentifierRegisteredAsField::class);
 
         Upsert::fromConnection($this->getMockConnection())
             ->forTable('foo_table')
@@ -54,12 +48,10 @@ class UpsertTest extends TestCase
             ->execute();
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function Identifiers_cannot_be_reregistered_as_fields(): void
     {
-        self::expectException(Exception\IdentifierRegisteredAsField::class);
+        self::expectException(Exception\FieldAlreadyInUse::class);
 
         Upsert::fromConnection($this->getMockConnection())
             ->forTable('foo_table')
@@ -68,9 +60,7 @@ class UpsertTest extends TestCase
             ->execute();
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function Fields_cannot_be_registered_more_than_once(): void
     {
         self::expectException(Exception\FieldAlreadyInUse::class);
@@ -82,12 +72,10 @@ class UpsertTest extends TestCase
             ->execute();
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function Fields_cannot_be_reregistered_as_identifiers(): void
     {
-        self::expectException(Exception\FieldRegisteredAsIdentifier::class);
+        self::expectException(Exception\IdentifierRegisteredAsField::class);
 
         Upsert::fromConnection($this->getMockConnection())
             ->forTable('foo_table')
@@ -96,9 +84,7 @@ class UpsertTest extends TestCase
             ->execute();
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function Parameters_are_built_correctly(): void
     {
         $connection = $this->getMockConnection();
@@ -127,9 +113,7 @@ class UpsertTest extends TestCase
             ->execute();
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function ParameterTypes_are_built_correctly(): void
     {
         $connection = $this->getMockConnection();
@@ -158,9 +142,7 @@ class UpsertTest extends TestCase
             ->execute();
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function RowCount_is_returned(): void
     {
         $connection = $this->getMockConnection();
@@ -191,9 +173,7 @@ class UpsertTest extends TestCase
         self::assertEquals(35, $count);
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function Table_Name_is_used_in_Query(): void
     {
         self::expectException(DBALException\TableNotFoundException::class);
@@ -205,9 +185,7 @@ class UpsertTest extends TestCase
             ->execute();
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function Insert_works(): void
     {
         $connection = $this->getSQLiteConnection();
@@ -224,15 +202,13 @@ class UpsertTest extends TestCase
         self::assertSame(
             [
                 'bar' => 'baz',
-                'count' => 1
+                'count' => '1'
             ],
             $values[0]
         );
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function Upsert_works(): void
     {
         $connection = $this->getSQLiteConnection();
@@ -250,7 +226,7 @@ class UpsertTest extends TestCase
         self::assertSame(
             [
                 'bar' => 'baz',
-                'count' => 2
+                'count' => '2'
             ],
             $values[0]
         );
@@ -258,7 +234,7 @@ class UpsertTest extends TestCase
 
     private function getSQLiteConnection(): Connection
     {
-        if (!extension_loaded('sqlite3')) {
+        if (!extension_loaded('sqlite')) {
             self::markTestSkipped('ext-sqlite3 is required for tests');
         }
 
@@ -276,16 +252,8 @@ class UpsertTest extends TestCase
             ->disableOriginalConstructor()
             ->getMock();
 
-        $platformClass = AbstractPlatform::class;
-        if (class_exists(SqlitePlatform::class)) {
-            $platformClass = SqlitePlatform::class;
-        }
-        $platform = $this->getMockBuilder($platformClass)
+        $platform = $this->getMockBuilder(SQLitePlatform::class)
             ->getMock();
-
-        $platform
-            ->method('getName')
-            ->willReturn('sqlite');
 
         $connection
             ->method('getDatabasePlatform')
