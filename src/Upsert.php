@@ -121,22 +121,24 @@ final class Upsert
             throw new Exception\EmptyUpsert('No columns have been specified for upsert!', 1603199389);
         }
 
-        $identifiers = implode(', ', array_keys($this->identifiers));
+        $platform = $this->connection->getDatabasePlatform();
+
+        $quotedIdentifiers = implode(', ', array_map(fn(string $col) => $platform->quoteSingleIdentifier($col), array_keys($this->identifiers)));
 
         $allFields = array_merge($this->fields, $this->identifiers);
 
-        $columns = implode(', ', array_keys($allFields));
+        $columns = implode(', ', array_map(fn(string $column) => $platform->quoteSingleIdentifier($column), array_keys($allFields)));
         $values = implode(', ', array_map(static fn (string $column): string => ':' . $column, array_keys($allFields)));
 
         $updates = implode(
             ', ',
             array_map(
-                static fn (string $column): string => $column . ' = :' . $column,
-                array_keys(array_filter($this->fields, static fn (array $field): bool => !$field['insertOnly']))
+                static fn (string $column): string => $platform->quoteSingleIdentifier($column) . ' = :' . $column,
+                array_keys(array_filter($this->fields, static fn(array $field): bool => !$field['insertOnly']))
             )
         );
 
-        $sql = $this->buildQuery($identifiers, $columns, $values, $updates);
+        $sql = $this->buildQuery($quotedIdentifiers, $columns, $values, $updates);
 
         $result = $this->connection->executeQuery(
             $sql,
