@@ -146,8 +146,11 @@ final class Upsert
             array_combine(array_keys($allFields), array_column($allFields, 'type'))
         );
 
-        foreach ($this->customFieldProcessors as $processor) {
-            $processor->postUpsert($this->table, $allFields, (int) $this->connection->lastInsertId());
+        if ($this->customFieldProcessors !== []) {
+            $id = (int)$this->connection->lastInsertId();
+            foreach ($this->customFieldProcessors as $processor) {
+                $processor->postUpsert($this->table, $allFields, $id);
+            }
         }
 
         return $result->rowCount();
